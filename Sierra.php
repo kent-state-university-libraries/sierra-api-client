@@ -6,7 +6,7 @@
  *
  *
  * Example Usage:
- * 
+ *
  * The example gets information on bib ID 3996024 and limits the results to 20 records only
  * including the fields id, location, and status.
  *
@@ -48,7 +48,7 @@ class Sierra {
     public $config = array(
         'tokenFile' => '/tmp/SierraToken'
     );
-   
+
 /**
  * Constructor
  *
@@ -65,32 +65,32 @@ class Sierra {
  * @param array $params Array of paramaters
  * @param boolean $marc True to have the response include MARC data
  * @return array Array of data
- */  
-    public function query($resource, $params = array(), $marc = false) {
+ */
+    public function query($resource, $params = array(), $marc = false, $method = 'GET') {
         if (!$this->_checkToken()) return null;
-        
+
         $headers = array('Authorization: ' . $this->token['token_type'] . ' ' . $this->token['access_token']);
         if ($marc) {
             $headers[] = 'Accept: application/marc-in-json';
         }
 
-        $response = $this->_request($this->config['endpoint'] . $resource, $params, $headers);
+        $response = $this->_request($this->config['endpoint'] . $resource, $params, $headers, $method);
         if ($response['status'] != 200) return null;
-        
+
         return json_decode($response['body'], true);
     }
 
 /**
- * Checks if Authentication Token exists or has expired. A new Authentication Token will 
+ * Checks if Authentication Token exists or has expired. A new Authentication Token will
  * be created if one does not exist.
  *
  * @return boolean True if token is valid
- */    
+ */
     private function _checkToken() {
         if (file_exists($this->config['tokenFile'])) {
             $this->token = json_decode(file_get_contents($this->config['tokenFile']), true);
         }
-        
+
         if (!$this->token || (time() >= $this->token['expires_at'])) {
             return $this->_accessToken();
         }
@@ -104,19 +104,19 @@ class Sierra {
  */
     private function _accessToken() {
         $auth = base64_encode($this->config['key'] . ':' . $this->config['secret']);
-    
-        $response = $this->_request($this->config['endpoint'] . 'token', array('grant_type', 'client_credentials'), array('Authorization: Basic ' . $auth), 'post');
+
+        $response = $this->_request($this->config['endpoint'] . 'token', array('grant_type', 'client_credentials'), array('Authorization: Basic ' . $auth), 'POST');
         $token = json_decode($response['body'], true);
         if (!$token) return false;
 
         if (!isset($token['error'])) {
             $token['expires_at'] = time() + $token['expires_in'];
-        
+
             $this->token = $token;
             file_put_contents($this->config['tokenFile'], json_encode($token));
             return true;
         }
-        
+
         return false;
     }
 
@@ -126,35 +126,53 @@ class Sierra {
  * @param string $url The full URL to the REST API call
  * @param array $params The query paramaters to pass to the call
  * @param array $header Additional header information to include
- * @param string $type The request type 'GET' or 'POST'
+ * @param string $method The request type 'GET' or 'POST'
  * @return array Result array
- * 
+ *
  * ### Result keys returned
  * - 'status': The return status from the server
  * - 'header': The header information fo the server
  * - 'body': The body of the message
  */
-    private function _request($url, $params = array(), $header = array(), $type = 'get') {
-        $type = strtolower($type);
+    private function _request($url, $params = array(), $header = array(), $method = 'GET') {
+        $method = strtoupper($method);
 
         $s = curl_init();
-        
-        if ($type == 'post') {
-            $header[] = 'Content-Type: application/x-www-form-urlencoded';
+
+        if ($method == 'POST') {
+
             curl_setopt($s, CURLOPT_POST, true);
-            curl_setopt($s, CURLOPT_POSTFIELDS, http_build_query($params));
+            // if authenticating
+            if ($url === $this->config['endpoint'] . 'token') {
+                $header[] = 'Content-Type: application/x-www-form-urlencoded';
+                curl_setopt($s, CURLOPT_POSTFIELDS, http_build_query($params));
+            }
+            // if using a POST endpoint
+            else {
+                $header[] = 'Content-Type: application/json';
+                curl_setopt($s, CURLOPT_POSTFIELDS, $params);
+            }
         }
-        else {
+        elseif ($method == 'GET') {
             $url .= ($params ? '?' . http_build_query($params) : '');
         }
-        
+        elseif ($method == 'PUT') {
+            // @todo
+        }
+        elseif ($method == 'DELETE') {
+            // @todo
+        }
+        else {
+            // @todo throw error
+        }
+
         curl_setopt($s, CURLOPT_URL, $url);
         curl_setopt($s, CURLOPT_TIMEOUT, 60);
         curl_setopt($s, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($s, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($s, CURLOPT_USERAGENT, 'Sierra PHP Test/0.1');
         curl_setopt($s, CURLOPT_HEADER, true);
-    
+
         if ($header) {
             curl_setopt($s, CURLOPT_HTTPHEADER, $header);
         }
@@ -164,14 +182,14 @@ class Sierra {
         $headerSize = curl_getinfo($s, CURLINFO_HEADER_SIZE);
         $header = $this->_parseResponseHeaders(substr($result, 0, $headerSize));
         $body = substr($result, $headerSize);
-    
+
         $response = array(
             'status' => $status,
             'header' => $header,
             'body' => $body
-        );	
+        );
         curl_close($s);
-    
+
         return $response;
     }
 
@@ -200,7 +218,7 @@ class Sierra {
                 }
             }
         }
-    
+
         return $headers;
     }
 }
