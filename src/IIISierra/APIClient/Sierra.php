@@ -1,4 +1,7 @@
 <?php
+
+namespace IIISierra\APIClient;
+
 /**
  * @file Sierra.php
  *
