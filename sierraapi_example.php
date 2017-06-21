@@ -1,6 +1,9 @@
 #!/usr/bin/php -q
 <?php
-include('Sierra.php');
+// you don't need to include if using composer for packaging
+include('src/IIISierra/APIClient/Sierra.php');
+
+use \IIISierra\APIClient\Sierra;
 
 $api = new Sierra(array(
     'endpoint' => 'SIERRA_ENDPOINT',

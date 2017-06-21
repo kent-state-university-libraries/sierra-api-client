@@ -9,7 +9,10 @@ This PHP class allows you to connect to Sierra's API and make queries.
 Before running any query, you will need to authenticate with your API client/secret
 
 ```
-include('Sierra.php');
+// you don't need to include if using composer for packaging
+include('src/IIISierra/APIClient/Sierra.php');
+
+use \IIISierra\APIClient\Sierra;
 
 $s = new Sierra(array(
   'endpoint' => 'Sierra REST API Endpoint (ie https://lib.example.edu/iii/sierra-api/v1/)',
